@@ -285,5 +285,3 @@ server <- function(input, output) {
 
 # Run App
 shinyApp(ui = ui, server = server)
-
-sdfghj
