@@ -110,6 +110,8 @@ ub_r <- Recommender(train, method="UBCF", param=list(nn=50, normalize="center"))
 p_r <- Recommender(train, method="POPULAR")
 ib_r <- Recommender(train, method="IBCF", param=list(k=50, method="cosine", normalize="center"))
 svd_r <- Recommender(train, method="SVD")
+svdf_r <- Recommender(train, method="SVDF")
+als_r <- Recommender(train, method="ALS")
 
 # Compute predicted ratings for the known part of the test data  (10 items for each
 # user) using the algorithms.
@@ -117,13 +119,16 @@ p_p <- predict(p_r, test, type="ratings")
 ib_p <- predict(ib_r, test, type="ratings")
 ub_p <- predict(ub_r, test, type="ratings")
 svd_p <- predict(svd_r, test, type = "ratings")
+svdf_p <- predict(svdf_r, test, type = "ratings")
+als_p <- predict(als_r, test, type = "ratings")
 
 # Create a hybrid recommender
 hybrid_r <- HybridRecommender(
   Recommender(train, method = "POPULAR"),
   Recommender(train, method = "IBCF"),
   Recommender(train, method = "UBCF"),
-  weights = c(0.65, 0.25, 0.10)
+  Recommender(train, method = "SVD"),
+  weights = c(0.7, 0.3, 0.0, 0.0)
 )
 hybrid_p <- predict(hybrid_r, test, type = "ratings")
 
@@ -133,49 +138,48 @@ hcas_rrm <- as(hcas, "realRatingMatrix")
 hcas_r <- Recommender(hcas_rrm, method="UBCF", param=list(nn=50))
 hcas_p <- predict(hcas_r, test, type="ratings")
 
-# Evaluating cascade UBCF and then IBCF on top of the UBCF
-cascade_r_rrm <- as(as(p_p, "matrix"), "realRatingMatrix")
-cascade_r <- Recommender(cascade_r_rrm, method="UBCF",param=list(nn=50, normalize="center"))
-cascade_p <- predict(cascade_r, test, type="ratings")
-
 # check best recommender errors
 error <- rbind(
   POPULAR = calcPredictionAccuracy(p_p, getData(e, "unknown")),
   ib = calcPredictionAccuracy(ib_p, getData(e, "unknown")),
   ub = calcPredictionAccuracy(ub_p, getData(e, "unknown")),
   svd = calcPredictionAccuracy(svd_p, getData(e, "unknown")),
+  svdf = calcPredictionAccuracy(svdf_p, getData(e, "unknown")),
+  als = calcPredictionAccuracy(als_p, getData(e, "unknown")),
   hybrid = calcPredictionAccuracy(hybrid_p, getData(e, "unknown")),
-  hcas = calcPredictionAccuracy(hcas_p, getData(e, "unknown")),
-  CASCADE = calcPredictionAccuracy(cascade_p, getData(e, "unknown"))
+  hcas = calcPredictionAccuracy(hcas_p, getData(e, "unknown"))
 )
 error
 
-##########################################################################
-## We can verify that "hcas" is the best recommendation algorithm.      ##
-## However the evaluate method can't evaluate a non realRatingMatrix.   ##
-## Due to this problem we are excluding the "hcas" and "cascade".       ##
-##########################################################################
+# re doing an hybrid recommender for best ROC curve
+HYBRID <- list( name = "HYBRID", param = list( recommenders = list(
+                                POPULAR = list(name = "POPULAR", param = NULL),
+                                IBCF = list(name = "IBCF", param = NULL),
+                                UBCF = list(name = "UBCF", param = NULL),
+                                SVD = list(name = "SVD", param = NULL)
+                                ),
+            weights = c(0.2, 0.1, 0.0, 0.7),
+            aggregation_type = "sum"   
+            )
+)
 
+# checking best recommenders 
 algorithms <- list(
   POPULAR = list(name = "POPULAR", param = NULL),
-  IBCF = list(name = "IBCF", param = NULL),
-  UBCF = list(name = "UBCF", param = NULL),
+  #IB = list(name = "IBCF", param = NULL),
+  #UB = list(name = "UBCF", param = NULL),
   SVD = list(name = "SVD", param = NULL),
-  HYBRID = list(name = "HYBRID", param = list(
-    recommenders = list(
-      POPULAR = list(name = "POPULAR", param = NULL),
-      IBCF = list(name = "IBCF", param = NULL),
-      UBCF = list(name = "UBCF", param = NULL)
-    ),
-    weights = c(0.35, 0.35, 0.3)
-  ))
+  SVDF = list(name = "SVDF", param = NULL),
+  ALS = list(name = "ALS", param = NULL),
+  #ALSI = list(name = "ALS_implicit", param = NULL),
+  HYBRID = HYBRID
 )
-ev <- evaluate(e, algorithms, n = c(1, 3, 5, 10, 15, 20))
-getConfusionMatrix(ev)[[1]]
-plot(ev, annotate = TRUE)
-plot(ev, "prec/rec", annotate=TRUE)
+all_results <- evaluate(e, algorithms, n = c(1,50,100,200,300,500,700,1000))
 
+# ROC curve
+plot(all_results, annotate = TRUE)
 
+plot(all_results, "prec/rec", annotate=TRUE)
 
 # Define UI
 ui <- fluidPage(
