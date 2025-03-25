@@ -1,24 +1,24 @@
-# 🔹 Vérification et installation automatique des packages nécessaires
+# 🔹 Automatic verification and installation of required packages
 packages_needed <- c("shiny", "shinyWidgets", "DT", "shinythemes", "colourpicker")
 
 for (pkg in packages_needed) {
   if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
 }
 
-# 🔹 Chargement des librairies
+# 🔹 Loading libraries
 library(shiny)
 library(shinyWidgets)
 library(DT)
 library(shinythemes)
 library(colourpicker)
 
-# 🔹 Simulation des recommandations des utilisateurs
+# 🔹 Simulating user recommendations
 Myrecommendations <- list(
   "User1" = c(292, 227, 288, 295, 498), 
   "User2" = c(227, 498, 295, 288, 292)
 )
 
-# 🔹 Base de données des artistes
+# 🔹 Artist database
 artists_info <- data.frame(
   charid = c(292, 227, 288, 295, 498), 
   name = c("Paramore", "Beyoncé", "The Beatles", "Britney Spears", "Radiohead"),
@@ -38,10 +38,10 @@ artists_info <- data.frame(
   ))
 )
 
-# 🔹 Interface utilisateur (UI)
+# 🔹 User Interface (UI)
 ui <- fluidPage(
-  theme = shinytheme("cosmo"),  # 🌟 Ajout d'un thème propre
-  titlePanel(tags$strong("🎵 Music Recommendation System")),  # Titre en gras noir
+  theme = shinytheme("cosmo"),  # 🌟 Clean theme addition
+  titlePanel(tags$strong("🎵 Music Recommendation System")),  # Bold black title
   
   sidebarLayout(
     sidebarPanel(
@@ -51,14 +51,14 @@ ui <- fluidPage(
     ),
     
     mainPanel(
-      uiOutput("dynamic_css"),  # 🌟 Zone pour le CSS dynamique
-      h3("🎧 Recommended Artists", style="text-align: center; font-size: 36px; font-weight: bold; color: #FFFFFF;"),  # Titre centré et stylé en blanc
+      uiOutput("dynamic_css"),  # 🌟 Area for dynamic CSS
+      h3("🎧 Recommended Artists", style="text-align: center; font-size: 36px; font-weight: bold; color: #FFFFFF;"),  # Centered styled white title
       uiOutput("recommendations_ui")
     )
   )
 )
 
-# 🔹 Serveur
+# 🔹 Server
 server <- function(input, output, session) {
   
   output$recommendations_ui <- renderUI({
@@ -72,17 +72,17 @@ server <- function(input, output, session) {
       return(h4("❌ No recommendations found!", style="color: #FFFFFF; font-weight: bold;"))
     }
     
-    # 🎨 Affichage amélioré des artistes
+    # 🎨 Enhanced artist display
     lapply(1:nrow(recommended_artists), function(i) {
       artist <- recommended_artists[i, ]
       
       fluidRow(
         column(3, img(src = artist$image_url, height = "100px", style="border-radius:10px;")),
         column(9,
-               h4(artist$name, style="font-weight: bold; color: #FFCC00; font-size: 24px;"),  # Nom de l'artiste en jaune
+               h4(artist$name, style="font-weight: bold; color: #FFCC00; font-size: 24px;"),  # Artist name in yellow
                strong("Top Songs:", class = "top-song"),
                tags$ul(lapply(artist$top_songs[[1]], function(song) {
-                 tags$li(style="color: #FFFFFF; text-align: left; font-size: 16px;", song)  # Chansons en blanc
+                 tags$li(style="color: #FFFFFF; text-align: left; font-size: 16px;", song)  # Songs in white
                }))
         ),
         hr()
@@ -90,22 +90,22 @@ server <- function(input, output, session) {
     })
   })
   
-  # 🎨 Appliquer les couleurs dynamiques avec `tags$style`
+  # 🎨 Apply dynamic colors with `tags$style`
   output$dynamic_css <- renderUI({
-    tags$style(HTML(paste0("
-      body { 
-        background-color: #1DB954;  /* Fond vert Spotify */
-        color: #FFFFFF;  /* Texte principal en blanc */
-      }
-      .top-song { 
-        color: #FFFFFF;  /* Couleur blanche pour 'Top Songs' */
-        text-decoration: underline; 
-        text-align: left; 
-        font-size: 18px; 
-      }
-    ")))
+    tags$style(HTML(paste0(
+      "body { ",
+      "background-color: #1DB954;  /* Spotify green background */",
+      "color: #FFFFFF;  /* Main text in white */",
+      "}",
+      ".top-song { ",
+      "color: #FFFFFF;  /* White color for 'Top Songs' */",
+      "text-decoration: underline; ",
+      "text-align: left; ",
+      "font-size: 18px; ",
+      "}"
+    )))
   })
 }
 
-# 🔹 Exécuter l'application
+# 🔹 Run the application
 shinyApp(ui = ui, server = server)
