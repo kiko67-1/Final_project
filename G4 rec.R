@@ -1,46 +1,72 @@
+<<<<<<< louane
+# 🔹 Vérification et installation automatique des packages nécessaires
+packages_needed <- c("shiny", "shinyWidgets", "DT", "shinythemes", "colourpicker")
 
-################################################################
-## Case Study: Build Your Own Recommendation System for artists/Songs #
-################################################################
+for (pkg in packages_needed) {
+  if (!requireNamespace(pkg, quietly = TRUE)) install.packages(pkg)
+}
 
+# 🔹 Chargement des librairies
+library(shiny)
+library(shinyWidgets)
+library(DT)
+library(shinythemes)
+library(colourpicker)
 
+# 🔹 Simulation des recommandations des utilisateurs
+Myrecommendations <- list(
+  "User1" = c(292, 227, 288, 295, 498), 
+  "User2" = c(227, 498, 295, 288, 292)
+)
+
+# 🔹 Base de données des artistes
+artists_info <- data.frame(
+  charid = c(292, 227, 288, 295, 498), 
+  name = c("Paramore", "Beyoncé", "The Beatles", "Britney Spears", "Radiohead"),
+  image_url = c(
+    "https://th.bing.com/th/id/OIP.pLagmVNkG1fNoyiAk0p7wwHaHa?w=180&h=181&c=7&r=0&o=5&dpr=1.3&pid=1.7",
+    "https://th.bing.com/th/id/OIP.I9NsKHy9AU7ymi-dxIYGEgHaIn?w=163&h=190&c=7&r=0&o=5&dpr=1.3&pid=1.7",
+    "https://th.bing.com/th/id/OIP.6SO23yjQA6lB09_ILY95gwHaFc?w=230&h=180&c=7&r=0&o=5&dpr=1.3&pid=1.7",
+    "https://th.bing.com/th/id/OIP.MOGy7dSEb7QsnDs2F4fKygHaI5?w=155&h=185&c=7&r=0&o=5&dpr=1.3&pid=1.7",
+    "https://th.bing.com/th/id/OIP.NchFCFuzvRb0Qt7JX2vtfAHaFI?w=286&h=198&c=7&r=0&o=5&dpr=1.3&pid=1.7"
+  ),
+  top_songs = I(list(
+    c("Misery Business", "Still Into You", "Decode", "The Only Exception", "Brick by Boring Brick"),
+    c("Halo", "Crazy in Love", "Single Ladies", "Irreplaceable", "Drunk in Love"),
+    c("Hey Jude", "Let It Be", "Come Together", "Yesterday", "Something"),
+    c("Oops!... I Did It Again", "...Baby One More Time", "Toxic", "Gimme More", "Circus"),
+    c("Creep", "Karma Police", "Paranoid Android", "High and Dry", "No Surprises")
+  ))
+)
+
+# 🔹 Interface utilisateur (UI)
+=======
+########################################################################
+## Case Study: Build Your Own Recommendation System for artists/Songs ##
+########################################################################
 # Data #
 # The dataset used in this system contains the number of time a user listened music 
 # from a particular artist. The dataset contains 92834 relations 
 # between 1892 users and 17632 artists.
-
-
 # OBJECTIVE #
-
 # Predicting ratings and creating personalized recommendations for songs
-
-
 ## METHODOLOGY ##
 # Users with similar preferences will rate items similarly.
 # Missing ratings for a user can be predicted by first finding a neighborhood of similar users and 
 # then aggregate the ratings of these users to form a prediction.
-# If X and Y are two users, the similarity between X and Y can be defined by:
-# sim(X,Y)=X*Y/||X||*||Y||
 
+library(shiny)
+library(tidyr)
+library(recommenderlab)
 
-### Music Recommendation System ###
 ## Load Data
-#Read artist File
 artists = read.table("Data/artists_gp4.dat",sep="\t",stringsAsFactors = F,comment.char = "",quote="",header = T)
-str(artists)
-
 user_artists = read.table("Data/user_artists_gp4.dat",sep="\t",header = T)
-str(user_artists)
 
 ### Data Transformation
-## Long to wide
-# The data provided is in long format. Let's convert to wider format such that each row represent the listened count of a user.
-
-library(tidyr)
-
+#Let's convert to wider format such that each row represent the listened count of a user.
 user_artists_wide <- spread(user_artists,key=artistID,value=weight)
 dim(user_artists_wide)
-
 
 ## Create character Id
 artists$charid=paste0("I",artists$id)
@@ -50,12 +76,11 @@ rownames(user_artists_wide) = paste0("U",userids)
 colnames(user_artists_wide) = paste0("I",colnames(user_artists_wide))
 user_artists_wide[1:6,1:10]
 
-
 # Select Top 1000 
 visits_byitem=colSums(user_artists_wide[,-1],na.rm = T)
 visits_1k = user_artists_wide[,order(visits_byitem,decreasing = T)[1:1000]]
 
-# Select users who has listened to at least 11 artists
+# Select users who has listened to at least 10 artists
 num_visits=apply(visits_1k,1,function(x) return(sum(!is.na(x))))
 visits_1k = visits_1k[num_visits>10,]
 dim(visits_1k)
@@ -63,7 +88,6 @@ dim(visits_1k)
 # Data is centered and scaled
 visits_1k=t(scale(t(visits_1k))[,])
 
-library(recommenderlab)
 # Convert visits_1k into a recommanderlab sparse matrix
 visits_1k_rrm=as(as.matrix(visits_1k),"realRatingMatrix")
 set.seed(100)
@@ -72,9 +96,6 @@ set.seed(100)
 # (only non-NA values are stored explicitly; NA values are represented by a dot)
 r <- visits_1k_rrm
 
-# Have a view to the rating sparse matrix
-getRatingMatrix(r)
-
 # Understand the data better
 as(r[1,], "list")
 rowMeans(r[1,])
@@ -82,35 +103,24 @@ hist(getRatings(r), breaks=60)
 hist(rowCounts(r), breaks=50)
 hist(colMeans(r), breaks=20)
 
-# Convert the rating matrix into a list of users with their ratings for closer inspection
-as(r, "list")
-
 # The rating matrix can converted into a data.frame with user/item/rating tuples.
 head(as(r, "data.frame"))
 
-
-######################################################################################
+################################################################################
 # here we have all the different methods
 recommenderRegistry$get_entries(dataType = "realRatingMatrix")
-######################################################################################
+################################################################################
 
-
-
-# We create a recommender which generates recommendations solely on the popularity of items (songs)
-p_rr <- Recommender(r[1:600], method = "POPULAR")
-ib_rr <- Recommender(r[1:600], method = "IBCF")
-
-# Obtain information about the model
-names(getModel(p_rr))
-getModel(p_rr)
+# We create recommenders which generates recommendations of songs
+p_rr <- Recommender(r[1:700], method = "POPULAR")
+ib_rr <- Recommender(r[1:700], method = "IBCF")
 
 # Recommendations in the form of an object of class TopNList
-# We create top-5 recommendation lists for 8 users who were not used to learn the model.
-recom <- predict(p_rr, r[600:788], n=5)
+# We create top-5 recommendation lists for 88 users who were not used to learn the model.
+recom <- predict(p_rr, r[700:788], n=5)
 recom
 recom@items
 recom@ratings
-
 
 # The result contains two ordered top-N recommendation lists, one for each user. 
 # The recommended items can be inspected as a list
@@ -131,157 +141,158 @@ for (i in 1:3){
   print(artists$name[artists$charid %in% Myrecommendations3[[i]]])
 }
 
-
-
-
-
-
-
-
-
-# Evaluation of predicted ratings
-
+### Evaluation of predicted ratings
 # Evaluation of a top-N recommender algorithm
-#e <- evaluationScheme(r, method="split", train=0.8, given=10, goodRating=1.2)
 set.seed(100)
 e <- evaluationScheme(r, method="cross", k=4, given=10, goodRating=1.2)
-e
 
+train=getData(e, "train")
+test=getData(e, "known")
 
-ub_r <- Recommender(getData(e, "train"), method="UBCF", param=list(method="cosine", nn=50))
-p_r <- Recommender(getData(e, "train"), method="POPULAR", param=list(method="cosine", nn=50))
-ib_r <- Recommender(getData(e, "train"), method="IBCF", param=list(method="cosine", nn=50))
-svd_r <- Recommender(getData(e, "train"), method="SVD", param=list(method="cosine", nn=50))
-
+ub_r <- Recommender(train, method="UBCF", param=list(nn=50, normalize="center"))
+p_r <- Recommender(train, method="POPULAR")
+ib_r <- Recommender(train, method="IBCF", param=list(k=50, method="cosine", normalize="center"))
+svd_r <- Recommender(train, method="SVD")
+svdf_r <- Recommender(train, method="SVDF")
+als_r <- Recommender(train, method="ALS")
 
 # Compute predicted ratings for the known part of the test data  (10 items for each
-# user) using the two algorithms.
-p_p <- predict(p_r, getData(e, "known"), type="ratings")
-ib_p <- predict(ib_r, getData(e, "known"), type="ratings")
-ub_p <- predict(ub_r, getData(e, "known"), type="ratings")
-svd_p <- predict(svd_r, getData(e, "known"), type = "ratings")
+# user) using the algorithms.
+p_p <- predict(p_r, test, type="ratings")
+ib_p <- predict(ib_r, test, type="ratings")
+ub_p <- predict(ub_r, test, type="ratings")
+svd_p <- predict(svd_r, test, type = "ratings")
+svdf_p <- predict(svdf_r, test, type = "ratings")
+als_p <- predict(als_r, test, type = "ratings")
 
+# Create a hybrid recommender
+hybrid_r <- HybridRecommender(
+  Recommender(train, method = "POPULAR"),
+  Recommender(train, method = "IBCF"),
+  Recommender(train, method = "UBCF"),
+  Recommender(train, method = "SVD"),
+  weights = c(0.7, 0.3, 0.0, 0.0)
+)
+hybrid_p <- predict(hybrid_r, test, type = "ratings")
 
-hybrid_r <- (0.6 * as(p_p, "matrix") + 0.4 * as(ib_p, "matrix") + 0.0 * as(ub_p, "matrix") )
-hybrid_r_rrm <- as(hybrid_r, "realRatingMatrix")
-hybrid_p <- Recommender(hybrid_r_rrm, method="UBCF", param=list(method="cosine", nn=50))
-hybrid_p <- predict(hybrid_p, getData(e, "known"), type="ratings")
+# Hybrid + cascade aproach of Popular, IBCF and UBCF + UBCF
+hcas <- (0.35 * as(p_p, "matrix") + 0.35 * as(ib_p, "matrix") + 0.3 * as(ub_p, "matrix") )
+hcas_rrm <- as(hcas, "realRatingMatrix")
+hcas_r <- Recommender(hcas_rrm, method="UBCF", param=list(nn=50))
+hcas_p <- predict(hcas_r, test, type="ratings")
 
-
-
-
-
-cascade_r_rrm <- as(as(ub_p, "matrix"), "realRatingMatrix")
-cascade_r <- Recommender(cascade_r_rrm, method="IBCF", param=list(method="cosine", nn=50))
-cascade_p <- predict(cascade_r, getData(e, "known"), type="ratings")
+# check best recommender errors
 error <- rbind(
   POPULAR = calcPredictionAccuracy(p_p, getData(e, "unknown")),
   ib = calcPredictionAccuracy(ib_p, getData(e, "unknown")),
-  #svd = calcPredictionAccuracy(svd_p, getData(e, "unknown")),
+  ub = calcPredictionAccuracy(ub_p, getData(e, "unknown")),
+  svd = calcPredictionAccuracy(svd_p, getData(e, "unknown")),
+  svdf = calcPredictionAccuracy(svdf_p, getData(e, "unknown")),
+  als = calcPredictionAccuracy(als_p, getData(e, "unknown")),
   hybrid = calcPredictionAccuracy(hybrid_p, getData(e, "unknown")),
-  CASCADE = calcPredictionAccuracy(cascade_p, getData(e, "unknown"))
+  hcas = calcPredictionAccuracy(hcas_p, getData(e, "unknown"))
 )
 error
-#
 
+# re doing an hybrid recommender for best ROC curve
+HYBRID <- list( name = "HYBRID", param = list( recommenders = list(
+                                POPULAR = list(name = "POPULAR", param = NULL),
+                                IBCF = list(name = "IBCF", param = NULL),
+                                UBCF = list(name = "UBCF", param = NULL),
+                                SVD = list(name = "SVD", param = NULL)
+                                ),
+            weights = c(0.2, 0.1, 0.0, 0.7),
+            aggregation_type = "sum"   
+            )
+)
 
-####### no use ################################################################
-# Evaluation of a top-N recommender using the cascade approach
-cascade_results <- evaluate(e, method="IBCF", type = "topNList", n=c(1,3,5,10,15,20))
-# Confusion Matrix and Plots for Cascade Recommender
-getConfusionMatrix(cascade_results)[[1]]
-avg(cascade_results)
-plot(cascade_results, annotate=TRUE)
-plot(cascade_results, "prec/rec", annotate=TRUE)
-##############################################################################
+# checking best recommenders 
+algorithms <- list(
+  POPULAR = list(name = "POPULAR", param = NULL),
+  #IB = list(name = "IBCF", param = NULL),
+  #UB = list(name = "UBCF", param = NULL),
+  SVD = list(name = "SVD", param = NULL),
+  SVDF = list(name = "SVDF", param = NULL),
+  ALS = list(name = "ALS", param = NULL),
+  #ALSI = list(name = "ALS_implicit", param = NULL),
+  HYBRID = HYBRID
+)
+all_results <- evaluate(e, algorithms, n = c(1,50,100,200,300,500,700,1000))
 
-?evaluate
+# ROC curve
+plot(all_results, annotate = TRUE)
 
+plot(all_results, "prec/rec", annotate=TRUE)
 
-
-
-
-
-# Use the created evaluation scheme to evaluate the recommender method popular. 
-# We evaluate top-1, top-3, top-5, top-10, top-15 and top-20 recommendation lists
-p_results <- evaluate(e, method="POPULAR", type = "topNList", n=c(1,3,5,10,15,20))
-ib_results <- evaluate(e, method="IBCF", type = "topNList", n=c(1,3,5,10,15,20))
-ub_results <- evaluate(e, method="UBCF", type = "topNList", n=c(1,3,5,10,15,20))
-
-
-
-r_inverse=t(r)
-e <- evaluationScheme(r.inverse, method="cross", k=4, given=10, goodRating=1.2)
-e
-svd_results <- evaluate(e, method="SVD", type = "topNList", n=c(1,3,5,10,15,20))
-
-
-# confusion matrices for the 1st run
-# Average confusion matrices for all the 4 runs
-# ROC curve for recommender
-# Precision-recall plot
-
-# Popular
-getConfusionMatrix(p_results)[[1]]
-avg(p_results)
-plot(p_results, annotate=TRUE)
-plot(p_results, "prec/rec", annotate=TRUE)
-
-# Item based
-getConfusionMatrix(ib_results)[[1]]
-avg(ib_results)
-plot(ib_results, annotate=TRUE)
-plot(ib_results, "prec/rec", annotate=TRUE)
-
-# 
-getConfusionMatrix(ub_results)[[1]]
-avg(ub_results)
-plot(svd_results, annotate=TRUE)
-plot(ub_results, "prec/rec", annotate=TRUE)
-
-
-
-library(shiny)
 # Define UI
+>>>>>>> main
 ui <- fluidPage(
-  titlePanel("Music Recommendation System"),
-    mainPanel(
+  theme = shinytheme("cosmo"),  # 🌟 Ajout d'un thème propre
+  titlePanel(tags$strong("🎵 Music Recommendation System")),  # Titre en gras noir
+  
+  sidebarLayout(
+    sidebarPanel(
       selectInput("user", "Select User:", choices = names(Myrecommendations)),
-      actionButton("evaluate", "Select"),
-      h3("Top 5 Item based Recommended Artists"),
-      verbatimTextOutput("recommendationsIB"),
-      h3("Top 5 Popularity Recommended Artists"),
-      verbatimTextOutput("recommendationsP"),
-      h3("Evaluation Metrics"),
-      tableOutput("metrics"),
-      h3("ROC Curve"),
-      plotOutput("rocCurve")
+      actionButton("evaluate", "🔍 Show Recommendations"),
+      hr()
+    ),
     
+    mainPanel(
+      uiOutput("dynamic_css"),  # 🌟 Zone pour le CSS dynamique
+      h3("🎧 Recommended Artists", style="text-align: center; font-size: 36px; font-weight: bold; color: #FFFFFF;"),  # Titre centré et stylé en blanc
+      uiOutput("recommendations_ui")
+    )
   )
 )
-# Define Server
-server <- function(input, output) {
-  output$recommendations <- renderPrint({
-    Myrecommendations[[input$user]]
+
+# 🔹 Serveur
+server <- function(input, output, session) {
+  
+  output$recommendations_ui <- renderUI({
+    req(input$user)
+    
+    user_recommendations <- Myrecommendations[[input$user]]
+    
+    recommended_artists <- artists_info[artists_info$charid %in% user_recommendations, ]
+    
+    if (nrow(recommended_artists) == 0) {
+      return(h4("❌ No recommendations found!", style="color: #FFFFFF; font-weight: bold;"))
+    }
+    
+    # 🎨 Affichage amélioré des artistes
+    lapply(1:nrow(recommended_artists), function(i) {
+      artist <- recommended_artists[i, ]
+      
+      fluidRow(
+        column(3, img(src = artist$image_url, height = "100px", style="border-radius:10px;")),
+        column(9,
+               h4(artist$name, style="font-weight: bold; color: #FFCC00; font-size: 24px;"),  # Nom de l'artiste en jaune
+               strong("Top Songs:", class = "top-song"),
+               tags$ul(lapply(artist$top_songs[[1]], function(song) {
+                 tags$li(style="color: #FFFFFF; text-align: left; font-size: 16px;", song)  # Chansons en blanc
+               }))
+        ),
+        hr()
+      )
+    })
   })
   
-  observeEvent(input$evaluate, {
-    # Evaluate Model
-    e <- evaluationScheme(r, method="cross", k=4, given=10, goodRating=1.2)
-    p_p <- predict(p_r, getData(e, "known"), type="ratings") #POPULAR
-    ib_p <- predict(ib_r, getData(e, "known"), type="ratings") #IBCF
-    error <- calcPredictionAccuracy(ib_p, getData(e, "unknown"))
-    
-    output$metrics <- renderTable({
-      data.frame(Metric = names(error), Value = unlist(error))
-    })
-    
-    output$rocCurve <- renderPlot({
-      results <- evaluate(e, method="POPULAR", type = "topNList", n=c(1,3,5,10,15,20))
-      plot(results, annotate = TRUE)
-    })
+  # 🎨 Appliquer les couleurs dynamiques avec `tags$style`
+  output$dynamic_css <- renderUI({
+    tags$style(HTML(paste0("
+      body { 
+        background-color: #1DB954;  /* Fond vert Spotify */
+        color: #FFFFFF;  /* Texte principal en blanc */
+      }
+      .top-song { 
+        color: #FFFFFF;  /* Couleur blanche pour 'Top Songs' */
+        text-decoration: underline; 
+        text-align: left; 
+        font-size: 18px; 
+      }
+    ")))
   })
 }
 
-# Run App
+# 🔹 Exécuter l'application
 shinyApp(ui = ui, server = server)
