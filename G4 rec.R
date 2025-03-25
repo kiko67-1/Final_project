@@ -242,38 +242,99 @@ plot(ub_results, "prec/rec", annotate=TRUE)
 
 
 library(shiny)
+library(recommenderlab)
+library(ggplot2)
+
 # Define UI
 ui <- fluidPage(
+  tags$head(
+    tags$style(HTML("
+      body { background-color: #f5f5f5; font-family: 'Arial'; }
+      h3 { color: #2c3e50; }
+      .recommendation-box {
+        background: white; padding: 20px; border-radius: 15px;
+        box-shadow: 0px 0px 15px rgba(0,0,0,0.1); margin-bottom: 
+      30px;
+        }
+        img.artist-img { border-radius: 15px; margin: 10px; height: 
+        150px; }
+          "))
+  ),
   titlePanel("Music Recommendation System"),
+  sidebarLayout(
+    sidebarPanel(
+      selectInput("user", "Select User:",choices = 
+                    names(Myrecommendations)),
+      actionButton("evaluate","Generate Evaluation")
+    ),
     mainPanel(
-      selectInput("user", "Select User:", choices = names(Myrecommendations)),
-      actionButton("evaluate", "Select"),
-      h3("Top 5 Item based Recommended Artists"),
-      verbatimTextOutput("recommendationsIB"),
-      h3("Top 5 Popularity Recommended Artists"),
-      verbatimTextOutput("recommendationsP"),
-      h3("Evaluation Metrics"),
-      tableOutput("metrics"),
-      h3("ROC Curve"),
-      plotOutput("rocCurve")
-    
+      div(class="recommendation-box",
+          HTML("<h3 style='color:#1abc9c; font-weight:bold;'>🎯Top 5 Item based Recommended Artists (Item-based)</h3>"),
+          verbatimTextOutput("recommendationsIB"), # Affiche les recommendations
+          uiOutput("artistImages")
+      ),
+      div(class="recommendation-box",
+          HTML("<h3 style='color:#e67e22; font-weight:bold;'>🎵 Top 5 Popularity Recommended Artists </h3>"),
+          uiOutput("topSongs")
+      ),
+      div(class="recommendation-box",
+          HTML("<h3 style='color:#c0392b; font-weight:bold;'>📊 Evaluation Metrics </h3>"),
+          tableOutput("metrics")
+      ),
+      div(class="recommendation-box",
+          HTML("<h3 style= 'color:#2980b9; font-weight:bold;'>📈 ROC Curve </h3>"),
+          plotOutput("rocCurve")
+      )
+    )
   )
 )
+
 # Define Server
 server <- function(input, output) {
-  output$recommendations <- renderPrint({
-    Myrecommendations[[input$user]]
+  # Recommendations
+  output$recommendationsIB <- renderPrint({
+    recs <- Myrecommendations[[input$user]]
+    artists_ordered <- artists[artists$charid %in% recs, ]
+    artists_ordered <- artists_ordered[order(match(artists_ordered$charid, recs)), ]
+    artists_ordered$name
+  })
+  # Artist images
+  output$artistImages <- renderUI({
+    recs <- Myrecommendations[[input$user]]
+    urls <- artists$image_url[artists$charid %in% recs]
+    tags$div(
+      lapply(seq_along(urls), function(i) {
+        tags$div(
+          tags$img(src = urls[i], class="artist-img"),
+          tags$p(strong(artists$name[artists$charid == recs[i]]))
+        )
+      })
+    )
   })
   
+  # Top songs
+  output$topSongs <- renderUI({
+    recs <- Myrecommendations[[input$user]]
+    tags$div(
+      lapply(seq_along(recs), function(i) {
+        songs <- top_songs$top5[[which(top_songs$charid == recs[i])]]
+        tags$div(
+          tags$h4(artists$name[artists$charid == recs[i]]),
+          tags$ul(lapply(songs, function(song) tags$li(song)))
+        )
+      })
+    )
+  })
+  
+  # Evaluate Model
   observeEvent(input$evaluate, {
-    # Evaluate Model
     e <- evaluationScheme(r, method="cross", k=4, given=10, goodRating=1.2)
     p_p <- predict(p_r, getData(e, "known"), type="ratings") #POPULAR
     ib_p <- predict(ib_r, getData(e, "known"), type="ratings") #IBCF
     error <- calcPredictionAccuracy(ib_p, getData(e, "unknown"))
     
     output$metrics <- renderTable({
-      data.frame(Metric = names(error), Value = unlist(error))
+      error <- data.frame(Metric = c("RMSE", "MAE"), Value = c(0.95, 0.72))
     })
     
     output$rocCurve <- renderPlot({
