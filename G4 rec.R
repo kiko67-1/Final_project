@@ -183,45 +183,73 @@ plot(all_results, "prec/rec", annotate=TRUE)
 
 # Define UI
 ui <- fluidPage(
-  titlePanel("Music Recommendation System"),
-    mainPanel(
+  theme = shinytheme("cosmo"),  # 🌟 Ajout d'un thème propre
+  titlePanel(tags$strong("🎵 Music Recommendation System")),  # Titre en gras noir
+  
+  sidebarLayout(
+    sidebarPanel(
       selectInput("user", "Select User:", choices = names(Myrecommendations)),
-      actionButton("evaluate", "Select"),
-      h3("Top 5 Item based Recommended Artists"),
-      verbatimTextOutput("recommendationsIB"),
-      h3("Top 5 Popularity Recommended Artists"),
-      verbatimTextOutput("recommendationsP"),
-      h3("Evaluation Metrics"),
-      tableOutput("metrics"),
-      h3("ROC Curve"),
-      plotOutput("rocCurve")
+      actionButton("evaluate", "🔍 Show Recommendations"),
+      hr()
+    ),
     
+    mainPanel(
+      uiOutput("dynamic_css"),  # 🌟 Zone pour le CSS dynamique
+      h3("🎧 Recommended Artists", style="text-align: center; font-size: 36px; font-weight: bold; color: #FFFFFF;"),  # Titre centré et stylé en blanc
+      uiOutput("recommendations_ui")
+    )
   )
 )
-# Define Server
-server <- function(input, output) {
-  output$recommendations <- renderPrint({
-    Myrecommendations[[input$user]]
+
+# 🔹 Serveur
+server <- function(input, output, session) {
+  
+  output$recommendations_ui <- renderUI({
+    req(input$user)
+    
+    user_recommendations <- Myrecommendations[[input$user]]
+    
+    recommended_artists <- artists_info[artists_info$charid %in% user_recommendations, ]
+    
+    if (nrow(recommended_artists) == 0) {
+      return(h4("❌ No recommendations found!", style="color: #FFFFFF; font-weight: bold;"))
+    }
+    
+    # 🎨 Affichage amélioré des artistes
+    lapply(1:nrow(recommended_artists), function(i) {
+      artist <- recommended_artists[i, ]
+      
+      fluidRow(
+        column(3, img(src = artist$image_url, height = "100px", style="border-radius:10px;")),
+        column(9,
+               h4(artist$name, style="font-weight: bold; color: #FFCC00; font-size: 24px;"),  # Nom de l'artiste en jaune
+               strong("Top Songs:", class = "top-song"),
+               tags$ul(lapply(artist$top_songs[[1]], function(song) {
+                 tags$li(style="color: #FFFFFF; text-align: left; font-size: 16px;", song)  # Chansons en blanc
+               }))
+        ),
+        hr()
+      )
+    })
   })
   
-  observeEvent(input$evaluate, {
-    # Evaluate Model
-    e <- evaluationScheme(r, method="cross", k=4, given=10, goodRating=1.2)
-    p_p <- predict(p_r, getData(e, "known"), type="ratings") #POPULAR
-    ib_p <- predict(ib_r, getData(e, "known"), type="ratings") #IBCF
-    error <- calcPredictionAccuracy(ib_p, getData(e, "unknown"))
-    
-    output$metrics <- renderTable({
-      data.frame(Metric = names(error), Value = unlist(error))
-    })
-    
-    output$rocCurve <- renderPlot({
-      results <- evaluate(e, method="POPULAR", type = "topNList", n=c(1,3,5,10,15,20))
-      plot(results, annotate = TRUE)
-    })
+  # 🎨 Appliquer les couleurs dynamiques avec `tags$style`
+  output$dynamic_css <- renderUI({
+    tags$style(HTML(paste0("
+      body { 
+        background-color: #1DB954;  /* Fond vert Spotify */
+        color: #FFFFFF;  /* Texte principal en blanc */
+      }
+      .top-song { 
+        color: #FFFFFF;  /* Couleur blanche pour 'Top Songs' */
+        text-decoration: underline; 
+        text-align: left; 
+        font-size: 18px; 
+      }
+    ")))
   })
 }
 
-# Run App
+# 🔹 Exécuter l'application
 shinyApp(ui = ui, server = server)
 
