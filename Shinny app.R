@@ -50,113 +50,6 @@ set.seed(100)
 # (only non-NA values are stored explicitly; NA values are represented by a dot)
 r <- user_artists_10_rrm
 
-# Understand the data better
-as(r[1,], "list")
-rowMeans(r[1,])
-hist(getRatings(r), breaks=60)
-hist(rowCounts(r), breaks=50)
-hist(colMeans(r), breaks=20)
-
-# The rating matrix can converted into a data.frame with user/item/rating tuples.
-head(as(r, "data.frame"))
-
-################################################################################
-# here we have all the different methods
-recommenderRegistry$get_entries(dataType = "realRatingMatrix")
-################################################################################
-
-### Evaluation of predicted ratings
-# Evaluation of a top-N recommender algorithm
-set.seed(100)
-e <- evaluationScheme(r, method="cross", k=4, given=10, goodRating=1.2)
-
-train=getData(e, "train")
-test=getData(e, "known")
-
-ub_r <- Recommender(train, method="UBCF", param=list(nn=50, normalize="center"))
-p_r <- Recommender(train, method="POPULAR")
-ib_r <- Recommender(train, method="IBCF", param=list(k=50, method="cosine", normalize="center"))
-svd_r <- Recommender(train, method="SVD")
-svdf_r <- Recommender(train, method="SVDF")
-als_r <- Recommender(train, method="ALS")
-
-# Compute predicted ratings for the known part of the test data  (10 items for each
-# user) using the algorithms.
-p_p <- predict(p_r, test, type="ratings")
-ib_p <- predict(ib_r, test, type="ratings")
-ub_p <- predict(ub_r, test, type="ratings")
-svd_p <- predict(svd_r, test, type = "ratings")
-svdf_p <- predict(svdf_r, test, type = "ratings")
-als_p <- predict(als_r, test, type = "ratings")
-
-# Create a hybrid recommender
-hybrid_r <- HybridRecommender(
-  Recommender(train, method = "POPULAR"),
-  Recommender(train, method = "IBCF"),
-  Recommender(train, method = "UBCF"),
-  Recommender(train, method = "SVD"),
-  weights = c(0.7, 0.3, 0.0, 0.0)
-)
-hybrid_p <- predict(hybrid_r, test, type = "ratings")
-
-# Hybrid + cascade aproach of Popular, IBCF and UBCF + UBCF
-hcas <- (0.35 * as(p_p, "matrix") + 0.35 * as(ib_p, "matrix") + 0.3 * as(ub_p, "matrix") )
-hcas_rrm <- as(hcas, "realRatingMatrix")
-hcas_r <- Recommender(hcas_rrm, method="UBCF", param=list(nn=50))
-hcas_p <- predict(hcas_r, test, type="ratings")
-
-# check best recommender errors
-error <- rbind(
-  POPULAR = calcPredictionAccuracy(p_p, getData(e, "unknown")),
-  ib = calcPredictionAccuracy(ib_p, getData(e, "unknown")),
-  ub = calcPredictionAccuracy(ub_p, getData(e, "unknown")),
-  svd = calcPredictionAccuracy(svd_p, getData(e, "unknown")),
-  svdf = calcPredictionAccuracy(svdf_p, getData(e, "unknown")),
-  als = calcPredictionAccuracy(als_p, getData(e, "unknown")),
-  hybrid = calcPredictionAccuracy(hybrid_p, getData(e, "unknown")),
-  hcas = calcPredictionAccuracy(hcas_p, getData(e, "unknown"))
-)
-error
-
-# re doing an hybrid recommender for best ROC curve
-HYBRID <- list( name = "HYBRID", param = list( recommenders = list(
-  POPULAR = list(name = "POPULAR", param = NULL),
-  IBCF = list(name = "IBCF", param = NULL),
-  UBCF = list(name = "UBCF", param = NULL),
-  SVD = list(name = "SVD", param = NULL)
-),
-weights = c(0.2, 0.1, 0.0, 0.7),
-aggregation_type = "sum"   
-)
-)
-
-# checking best recommenders 
-algorithms <- list(
-  POPULAR = list(name = "POPULAR", param = NULL),
-  #IB = list(name = "IBCF", param = NULL),
-  #UB = list(name = "UBCF", param = NULL),
-  SVD = list(name = "SVD", param = NULL),
-  SVDF = list(name = "SVDF", param = NULL),
-  ALS = list(name = "ALS", param = NULL),
-  #ALSI = list(name = "ALS_implicit", param = NULL),
-  HYBRID = HYBRID
-)
-all_results <- evaluate(e, algorithms, n = c(1,50,100,200,300,500,700,1000))
-
-# ROC curve
-plot(all_results, annotate = TRUE)
-
-plot(all_results, "prec/rec", annotate=TRUE)
-
-
-
-
-
-
-
-
-
-
 database=as(as.matrix(user_artists_wide),"realRatingMatrix")
 svd_model <- Recommender(r, method = "SVD")
 
@@ -179,10 +72,7 @@ scrap_url <- function(artist_url) {
   return(list(top_tracks = top_tracks, img_url = img_url))
 }
 
-
-
-
-
+############################################### APP ################################################
 
 ui <- fluidPage(
   titlePanel(tags$strong("Music Recommendation System", style="text-align: center;")),
@@ -225,13 +115,13 @@ server <- function(input, output, session) {
   observeEvent(input$evaluate, {
     req(input$user)  # Ensure user is selected
     
-#cat("user: ",input$user, "\n")
+    #cat("user: ",input$user, "\n")
     
     # Generate recommendations for the selected user
     recomendations <- predict(svd_model, database[selected_user(), , drop = FALSE], n = 5)
     predicted_artists <- as(recomendations, "list")[[1]]
     
-#cat("predict: ",predicted_artists, "\n")
+    #cat("predict: ",predicted_artists, "\n")
     
     if (length(predicted_artists) == 0) {
       recommendations(NULL)  # No recommendations found
@@ -257,7 +147,7 @@ server <- function(input, output, session) {
         recommended_artists$img_url <- sapply(top_artist_info, function(info) info$img_url)
         
         recommendations(recommended_artists) # Save the results to the reactive value
-#print(recommended_artists$name)
+        #print(recommended_artists$name)
       }
     }
     
@@ -265,7 +155,7 @@ server <- function(input, output, session) {
     # Render the recommendations UI based on the reactive value
     output$recommendations_ui <- renderUI({
       rec_artists <- recommendations()
-#print(rec_artists$name)
+      #print(rec_artists$name)
       
       # Check if recommendations exist
       if (is.null(rec_artists)) {
@@ -279,16 +169,16 @@ server <- function(input, output, session) {
         fluidRow(
           column(3, 
                  img(src = artist$img_url, height = "200px", style="border-radius:10px; max-width: 100%;")),
-#cat("img: ",artist$img_url, "\n"),
+          #cat("img: ",artist$img_url, "\n"),
           column(9,
                  h4(artist$name, style="font-weight: bold; color: #FFCC00; font-size: 24px;"),
-#cat("name: ",artist$name, "\n"),
-#cat("traks: "),
-#print(artist$top_tracks),
-                strong("Top Tracks:", class = "top-song"),
-                tags$ul(lapply(strsplit(artist$top_tracks, ",")[[1]], function(song) {
-                tags$li(style="color: #FFFFFF; text-align: left; font-size: 16px;", trimws(song))
-                }))
+                 #cat("name: ",artist$name, "\n"),
+                 #cat("traks: "),
+                 #print(artist$top_tracks),
+                 strong("Top Tracks:", class = "top-song"),
+                 tags$ul(lapply(strsplit(artist$top_tracks, ",")[[1]], function(song) {
+                   tags$li(style="color: #FFFFFF; text-align: left; font-size: 16px;", trimws(song))
+                 }))
           ),
           hr()
         )
