@@ -7,48 +7,49 @@
 # between 1892 users and 17632 artists.
 # OBJECTIVE #
 # Predicting ratings and creating personalized recommendations for songs
-## METHODOLOGY ##
-# Users with similar preferences will rate items similarly.
-# Missing ratings for a user can be predicted by first finding a neighborhood of similar users and 
-# then aggregate the ratings of these users to form a prediction.
 
 library(shiny)
 library(tidyr)
 library(recommenderlab)
 library(rvest)
+library(bigstatsr)
 
 ## Load Data
 artists = read.table("Data/artists_gp4.dat",sep="\t",stringsAsFactors = F,comment.char = "",quote="",header = T)
 user_artists = read.table("Data/user_artists_gp4.dat",sep="\t",header = T)
 
 ### Data Transformation
-#Let's convert to wider format such that each row represent the listened count of a user.
+# Convert to wide format where each row represents the listened count of a user
 user_artists_wide <- spread(user_artists,key=artistID,value=weight)
 dim(user_artists_wide)
 
 ## Create character Id
 artists$charid=paste0("I",artists$id)
 userids=user_artists_wide$userID
-user_artists_wide$IuserID = NULL
 rownames(user_artists_wide) = paste0("U",userids)
 colnames(user_artists_wide) = paste0("I",colnames(user_artists_wide))
+user_artists_wide$IuserID = NULL
 user_artists_wide[1:6,1:10]
 
+# Select Top 1000 
+visits_byitem=colSums(user_artists_wide[,-1],na.rm = T)
+visits_1k = user_artists_wide[,order(visits_byitem,decreasing = T)[1:1000]]
+
 # Select users who has listened to at least 10 artists
-num_visits=apply(user_artists_wide,1,function(x) return(sum(!is.na(x))))
-user_artists_10 = user_artists_wide[num_visits>10,]
-dim(user_artists_10)
+num_visits=apply(visits_1k,1,function(x) return(sum(!is.na(x))))
+visits_1k = visits_1k[num_visits>10,]
+dim(visits_1k)
 
 # Data is centered and scaled
-user_artists_10=t(scale(t(user_artists_10))[,])
+visits_1k=t(scale(t(visits_1k))[,])
 
 # Convert visits_1k into a recommanderlab sparse matrix
-user_artists_10_rrm=as(as.matrix(user_artists_10),"realRatingMatrix")
+visits_1k_rrm=as(as.matrix(visits_1k),"realRatingMatrix")
 set.seed(100)
 
 # The matrix is converted into a realRatingMatrix object which stores the data in sparse format 
 # (only non-NA values are stored explicitly; NA values are represented by a dot)
-r <- user_artists_10_rrm
+r <- visits_1k_rrm
 
 # Understand the data better
 as(r[1,], "list")
@@ -75,32 +76,33 @@ test=getData(e, "known")
 
 ub_r <- Recommender(train, method="UBCF", param=list(nn=50, normalize="center"))
 p_r <- Recommender(train, method="POPULAR")
-ib_r <- Recommender(train, method="IBCF", param=list(k=50, method="cosine", normalize="center"))
 svd_r <- Recommender(train, method="SVD")
 svdf_r <- Recommender(train, method="SVDF")
 als_r <- Recommender(train, method="ALS")
+alsi_r <- Recommender(train, method="ALS_implicit")
 
 # Compute predicted ratings for the known part of the test data  (10 items for each
 # user) using the algorithms.
 p_p <- predict(p_r, test, type="ratings")
-ib_p <- predict(ib_r, test, type="ratings")
 ub_p <- predict(ub_r, test, type="ratings")
 svd_p <- predict(svd_r, test, type = "ratings")
 svdf_p <- predict(svdf_r, test, type = "ratings")
 als_p <- predict(als_r, test, type = "ratings")
+alsi_p <- predict(alsi_r, test, type = "ratings")
 
+set.seed(100)
 # Create a hybrid recommender
 hybrid_r <- HybridRecommender(
   Recommender(train, method = "POPULAR"),
-  Recommender(train, method = "IBCF"),
   Recommender(train, method = "UBCF"),
   Recommender(train, method = "SVD"),
-  weights = c(0.7, 0.3, 0.0, 0.0)
+  weights = c(0.8, 0.2, 0.0)
 )
-hybrid_p <- predict(hybrid_r, test, type = "ratings")
+hybrid_p <- predict(hybrid_r, test, type="ratings")
 
+set.seed(100)
 # Hybrid + cascade aproach of Popular, IBCF and UBCF + UBCF
-hcas <- (0.35 * as(p_p, "matrix") + 0.35 * as(ib_p, "matrix") + 0.3 * as(ub_p, "matrix") )
+hcas <- (0.8 * as(p_p, "matrix") + 0.2 * as(ub_p, "matrix") )
 hcas_rrm <- as(hcas, "realRatingMatrix")
 hcas_r <- Recommender(hcas_rrm, method="UBCF", param=list(nn=50))
 hcas_p <- predict(hcas_r, test, type="ratings")
@@ -108,32 +110,30 @@ hcas_p <- predict(hcas_r, test, type="ratings")
 # check best recommender errors
 error <- rbind(
   POPULAR = calcPredictionAccuracy(p_p, getData(e, "unknown")),
-  ib = calcPredictionAccuracy(ib_p, getData(e, "unknown")),
-  ub = calcPredictionAccuracy(ub_p, getData(e, "unknown")),
+  #ub = calcPredictionAccuracy(ub_p, getData(e, "unknown")),
   svd = calcPredictionAccuracy(svd_p, getData(e, "unknown")),
   svdf = calcPredictionAccuracy(svdf_p, getData(e, "unknown")),
   als = calcPredictionAccuracy(als_p, getData(e, "unknown")),
-  hybrid = calcPredictionAccuracy(hybrid_p, getData(e, "unknown")),
-  hcas = calcPredictionAccuracy(hcas_p, getData(e, "unknown"))
+  #alsi = calcPredictionAccuracy(alsi_p, getData(e, "unknown")),
+  hybrid = calcPredictionAccuracy(hybrid_p, getData(e, "unknown"))#,
+  #hcas = calcPredictionAccuracy(hcas_p, getData(e, "unknown"))
 )
 error
 
+set.seed(100)
 # re doing an hybrid recommender for best ROC curve
 HYBRID <- list( name = "HYBRID", param = list( recommenders = list(
   POPULAR = list(name = "POPULAR", param = NULL),
-  IBCF = list(name = "IBCF", param = NULL),
   UBCF = list(name = "UBCF", param = NULL),
   SVD = list(name = "SVD", param = NULL)
 ),
-weights = c(0.2, 0.1, 0.0, 0.7),
+weights = c(0.8, 0.2, 0.0),
 aggregation_type = "sum"   
-)
-)
+))
 
 # checking best recommenders 
 algorithms <- list(
   POPULAR = list(name = "POPULAR", param = NULL),
-  #IB = list(name = "IBCF", param = NULL),
   #UB = list(name = "UBCF", param = NULL),
   SVD = list(name = "SVD", param = NULL),
   SVDF = list(name = "SVDF", param = NULL),
@@ -144,6 +144,5 @@ algorithms <- list(
 all_results <- evaluate(e, algorithms, n = c(1,50,100,200,300,500,700,1000))
 
 # ROC curve
-plot(all_results, annotate = TRUE)
-
-plot(all_results, "prec/rec", annotate=TRUE)
+plot(all_results,"ROC", annotate = TRUE)
+plot(all_results, "prec/rec", annotate = TRUE)

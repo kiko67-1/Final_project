@@ -51,7 +51,7 @@ set.seed(100)
 r <- user_artists_10_rrm
 
 database=as(as.matrix(user_artists_wide),"realRatingMatrix")
-svd_model <- Recommender(r, method = "SVD")
+model <- Recommender(r, method = "SVD")
 
 # Function to scrape the top tracks and background image URL from the Last.fm page
 scrap_url <- function(artist_url) {
@@ -81,10 +81,7 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       selectizeInput("user", "Select User:", choices = rownames(r), multiple = FALSE, options = list(
-        placeholder = 'Search for a user...',
-        maxOptions = 100,  # Increase the number of displayed options
-        create = FALSE,  # Prevent users from creating new options
-        persist = FALSE  # Prevent persisting values not in the list
+        placeholder = 'Search for a user...'
       )),
       actionButton("evaluate", "🔍 Show Recommendations"),
       h5('Click on "Show Recommendations" to see the recommendations', class="black-text")
@@ -99,7 +96,7 @@ ui <- fluidPage(
   )
 )
 
-# 🔹 Serveur
+# 🔹 Server
 server <- function(input, output, session) {
   
   # Reactive expression to hold recommendations
@@ -115,19 +112,19 @@ server <- function(input, output, session) {
   observeEvent(input$evaluate, {
     req(input$user)  # Ensure user is selected
     
-    #cat("user: ",input$user, "\n")
+#cat("user: ",input$user, "\n")
     
     # Generate recommendations for the selected user
-    recomendations <- predict(svd_model, database[selected_user(), , drop = FALSE], n = 5)
+    recomendations <- predict(model, database[selected_user(), drop = FALSE], n = 5)
     predicted_artists <- as(recomendations, "list")[[1]]
     
-    #cat("predict: ",predicted_artists, "\n")
+  #cat("predict: ",predicted_artists, "\n")
     
     if (length(predicted_artists) == 0) {
       recommendations(NULL)  # No recommendations found
     } else {
       # Filter artist details
-      recommended_artists <- artists[artists$charid %in% predicted_artists, c("name", "pictureURL", "charid", "url")]
+      recommended_artists <- artists[artists$charid %in% predicted_artists, c("name", "charid", "url")]
       
       # Ensure recommended_artists has results
       if (nrow(recommended_artists) == 0) {
@@ -147,15 +144,19 @@ server <- function(input, output, session) {
         recommended_artists$img_url <- sapply(top_artist_info, function(info) info$img_url)
         
         recommendations(recommended_artists) # Save the results to the reactive value
-        #print(recommended_artists$name)
+  #print(recommended_artists$name)
       }
     }
+    
+    
+################################ visual serv ##################################
+    
     
     
     # Render the recommendations UI based on the reactive value
     output$recommendations_ui <- renderUI({
       rec_artists <- recommendations()
-      #print(rec_artists$name)
+  #print(rec_artists$name)
       
       # Check if recommendations exist
       if (is.null(rec_artists)) {
@@ -169,12 +170,12 @@ server <- function(input, output, session) {
         fluidRow(
           column(3, 
                  img(src = artist$img_url, height = "200px", style="border-radius:10px; max-width: 100%;")),
-          #cat("img: ",artist$img_url, "\n"),
+    #cat("img: ",artist$img_url, "\n"),
           column(9,
                  h4(artist$name, style="font-weight: bold; color: #FFCC00; font-size: 24px;"),
                  #cat("name: ",artist$name, "\n"),
-                 #cat("traks: "),
-                 #print(artist$top_tracks),
+    #cat("traks: "),
+  #print(artist$top_tracks),
                  strong("Top Tracks:", class = "top-song"),
                  tags$ul(lapply(strsplit(artist$top_tracks, ",")[[1]], function(song) {
                    tags$li(style="color: #FFFFFF; text-align: left; font-size: 16px;", trimws(song))
@@ -214,3 +215,4 @@ server <- function(input, output, session) {
   })
 }
 shinyApp(ui = ui, server = server)
+

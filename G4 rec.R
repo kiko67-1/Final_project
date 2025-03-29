@@ -70,32 +70,24 @@ recommenderRegistry$get_entries(dataType = "realRatingMatrix")
 
 # We create recommenders which generates recommendations of songs
 p_rr <- Recommender(r[1:700], method = "POPULAR")
-ib_rr <- Recommender(r[1:700], method = "IBCF")
+svd_rr <- Recommender(r[1:700], method = "SVD")
 
 # Recommendations in the form of an object of class TopNList
 # We create top-5 recommendation lists for 88 users who were not used to learn the model.
-recom <- predict(p_rr, r[700:788], n=5)
-recom
+recom <- predict(svd_rr, r[700:788], n=5)
 recom@items
 recom@ratings
 
+range(recom@ratings)
+
 # The result contains two ordered top-N recommendation lists, one for each user. 
-# The recommended items can be inspected as a list
-Myrecommendations<-as(recom, "list")
+# The best 5 recommendations for each list using bestN().
+recom5 <- bestN(recom, n = 5)
+Myrecommendations5<-as(recom5, "list")
 
 for (i in 1:5){
-  print(Myrecommendations[i])
-  print(artists$name[artists$charid %in% Myrecommendations[[i]]])
-}
-
-# The best 3 recommendations for each list using bestN().
-recom3 <- bestN(recom, n = 3)
-recom3
-Myrecommendations3<-as(recom3, "list")
-
-for (i in 1:3){
-  print(Myrecommendations3[i])
-  print(artists$name[artists$charid %in% Myrecommendations3[[i]]])
+  print(Myrecommendations5[i])
+  print(artists$name[artists$charid %in% Myrecommendations5[[i]]])
 }
 
 ### Evaluation of predicted ratings
@@ -168,6 +160,7 @@ algorithms <- list(
   POPULAR = list(name = "POPULAR", param = NULL),
   #IB = list(name = "IBCF", param = NULL),
   #UB = list(name = "UBCF", param = NULL),
+  
   SVD = list(name = "SVD", param = NULL),
   SVDF = list(name = "SVDF", param = NULL),
   ALS = list(name = "ALS", param = NULL),
