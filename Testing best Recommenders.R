@@ -123,7 +123,7 @@ HYBRID <- list( name = "HYBRID", param = list( recommenders = list(
   UBCF = list(name = "UBCF", param = NULL),
   SVD = list(name = "SVD", param = NULL)
 ),
-weights = c(0.2, 0.8, 0.0),
+weights = c(0.8, 0.2, 0.0),
 aggregation_type = "sum"   
 ))
 
