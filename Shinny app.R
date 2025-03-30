@@ -110,7 +110,7 @@ server <- function(input, output, session) {
   
   # Observe the button click event to generate recommendations
   observeEvent(input$evaluate, {
-    req(input$user)  # Ensure user is selected
+    req(input$user)
     
 #cat("user: ",input$user, "\n")
     

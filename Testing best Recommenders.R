@@ -79,7 +79,6 @@ p_r <- Recommender(train, method="POPULAR")
 svd_r <- Recommender(train, method="SVD")
 svdf_r <- Recommender(train, method="SVDF")
 als_r <- Recommender(train, method="ALS")
-alsi_r <- Recommender(train, method="ALS_implicit")
 
 # Compute predicted ratings for the known part of the test data  (10 items for each
 # user) using the algorithms.
@@ -88,7 +87,6 @@ ub_p <- predict(ub_r, test, type="ratings")
 svd_p <- predict(svd_r, test, type = "ratings")
 svdf_p <- predict(svdf_r, test, type = "ratings")
 als_p <- predict(als_r, test, type = "ratings")
-alsi_p <- predict(alsi_r, test, type = "ratings")
 
 set.seed(100)
 # Create a hybrid recommender
@@ -100,7 +98,6 @@ hybrid_r <- HybridRecommender(
 )
 hybrid_p <- predict(hybrid_r, test, type="ratings")
 
-set.seed(100)
 # Hybrid + cascade aproach of Popular, IBCF and UBCF + UBCF
 hcas <- (0.8 * as(p_p, "matrix") + 0.2 * as(ub_p, "matrix") )
 hcas_rrm <- as(hcas, "realRatingMatrix")
@@ -110,39 +107,39 @@ hcas_p <- predict(hcas_r, test, type="ratings")
 # check best recommender errors
 error <- rbind(
   POPULAR = calcPredictionAccuracy(p_p, getData(e, "unknown")),
-  #ub = calcPredictionAccuracy(ub_p, getData(e, "unknown")),
+  ub = calcPredictionAccuracy(ub_p, getData(e, "unknown")),
   svd = calcPredictionAccuracy(svd_p, getData(e, "unknown")),
   svdf = calcPredictionAccuracy(svdf_p, getData(e, "unknown")),
   als = calcPredictionAccuracy(als_p, getData(e, "unknown")),
-  #alsi = calcPredictionAccuracy(alsi_p, getData(e, "unknown")),
-  hybrid = calcPredictionAccuracy(hybrid_p, getData(e, "unknown"))#,
-  #hcas = calcPredictionAccuracy(hcas_p, getData(e, "unknown"))
+  hybrid = calcPredictionAccuracy(hybrid_p, getData(e, "unknown")),
+  hcas = calcPredictionAccuracy(hcas_p, getData(e, "unknown"))
 )
 error
 
 set.seed(100)
-# re doing an hybrid recommender for best ROC curve
+# re doing the hybrid recommender
 HYBRID <- list( name = "HYBRID", param = list( recommenders = list(
   POPULAR = list(name = "POPULAR", param = NULL),
   UBCF = list(name = "UBCF", param = NULL),
   SVD = list(name = "SVD", param = NULL)
 ),
-weights = c(0.8, 0.2, 0.0),
+weights = c(0.2, 0.8, 0.0),
 aggregation_type = "sum"   
 ))
 
 # checking best recommenders 
 algorithms <- list(
   POPULAR = list(name = "POPULAR", param = NULL),
-  #UB = list(name = "UBCF", param = NULL),
+  UB = list(name = "UBCF", param = NULL),
   SVD = list(name = "SVD", param = NULL),
-  SVDF = list(name = "SVDF", param = NULL),
-  ALS = list(name = "ALS", param = NULL),
-  #ALSI = list(name = "ALS_implicit", param = NULL),
+  #SVDF = list(name = "SVDF", param = NULL),
+  #ALS = list(name = "ALS", param = NULL),
   HYBRID = HYBRID
 )
 all_results <- evaluate(e, algorithms, n = c(1,50,100,200,300,500,700,1000))
 
 # ROC curve
 plot(all_results,"ROC", annotate = TRUE)
-plot(all_results, "prec/rec", annotate = TRUE)
+
+avg(all_results)
+
