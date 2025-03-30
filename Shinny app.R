@@ -29,9 +29,9 @@ dim(user_artists_wide)
 ## Create character Id
 artists$charid=paste0("I",artists$id)
 userids=user_artists_wide$userID
-user_artists_wide$IuserID = NULL
 rownames(user_artists_wide) = paste0("U",userids)
 colnames(user_artists_wide) = paste0("I",colnames(user_artists_wide))
+user_artists_wide$IuserID = NULL
 user_artists_wide[1:6,1:10]
 
 # Select users who has listened to at least 10 artists
@@ -89,7 +89,7 @@ ui <- fluidPage(
     
     mainPanel(
       uiOutput("dynamic_css"),
-      h3("🎧 Recommended Artists", 
+      h3("🎧 Recommended Artists",
          style="text-align: center; font-size: 36px; font-weight: bold; color: #FFFFFF;"),
       uiOutput("recommendations_ui")
     )
@@ -115,7 +115,7 @@ server <- function(input, output, session) {
 #cat("user: ",input$user, "\n")
     
     # Generate recommendations for the selected user
-    recomendations <- predict(model, database[selected_user(), drop = FALSE], n = 5)
+    recomendations <- predict(model, database[selected_user(), drop = FALSE], n = 8)
     predicted_artists <- as(recomendations, "list")[[1]]
     
   #cat("predict: ",predicted_artists, "\n")
@@ -143,8 +143,9 @@ server <- function(input, output, session) {
         })
         recommended_artists$img_url <- sapply(top_artist_info, function(info) info$img_url)
         
-        recommendations(recommended_artists) # Save the results to the reactive value
-  #print(recommended_artists$name)
+        data=recommended_artists[1:5,]
+        recommendations(data) # Save the results to the reactive value
+  #print(data$name)
       }
     }
     
@@ -173,7 +174,7 @@ server <- function(input, output, session) {
     #cat("img: ",artist$img_url, "\n"),
           column(9,
                  h4(artist$name, style="font-weight: bold; color: #FFCC00; font-size: 24px;"),
-                 #cat("name: ",artist$name, "\n"),
+    #cat("name: ",artist$name, "\n"),
     #cat("traks: "),
   #print(artist$top_tracks),
                  strong("Top Tracks:", class = "top-song"),
