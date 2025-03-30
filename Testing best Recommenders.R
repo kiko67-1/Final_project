@@ -45,10 +45,6 @@ visits_1k=t(scale(t(visits_1k))[,])
 
 # Convert visits_1k into a recommanderlab sparse matrix
 visits_1k_rrm=as(as.matrix(visits_1k),"realRatingMatrix")
-set.seed(100)
-
-# The matrix is converted into a realRatingMatrix object which stores the data in sparse format 
-# (only non-NA values are stored explicitly; NA values are represented by a dot)
 r <- visits_1k_rrm
 
 # Understand the data better

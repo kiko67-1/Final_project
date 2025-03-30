@@ -44,12 +44,9 @@ user_artists_10=t(scale(t(user_artists_10))[,])
 
 # Convert visits_1k into a recommanderlab sparse matrix
 user_artists_10_rrm=as(as.matrix(user_artists_10),"realRatingMatrix")
-set.seed(100)
-
-# The matrix is converted into a realRatingMatrix object which stores the data in sparse format 
-# (only non-NA values are stored explicitly; NA values are represented by a dot)
 r <- user_artists_10_rrm
 
+set.seed(100)
 database=as(as.matrix(user_artists_wide),"realRatingMatrix")
 model <- Recommender(r, method = "SVD")
 
